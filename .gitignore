@@ -1,0 +1,56 @@
+# -------------------------
+# IntelliJ IDEA
+# -------------------------
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# -------------------------
+# macOS
+# -------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# -------------------------
+# Java / Maven
+# -------------------------
+backend/target/
+**/target/
+
+# -------------------------
+# Node / React
+# -------------------------
+node_modules/
+**/node_modules/
+frontend/dist/
+**/dist/
+
+# npm debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# -------------------------
+# Environment / secrets
+# -------------------------
+.env
+.env.*
+!.env.example
+
+# -------------------------
+# IDE / editor temporary files
+# -------------------------
+*.swp
+*.swo
+*.tmp
+*.bak
+*~
+
+# -------------------------
+# OS / IDE caches
+# -------------------------
+.DS_Store?
+Thumbs.db

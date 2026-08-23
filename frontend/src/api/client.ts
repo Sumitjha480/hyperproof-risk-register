@@ -11,6 +11,7 @@ import type {
 } from '../types/risk'
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '')
+const API_TIMEOUT_MS = 2_000
 
 export class ApiClientError extends Error {
   readonly status: number
@@ -27,28 +28,46 @@ export class ApiClientError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...init?.headers,
-    },
-  })
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), API_TIMEOUT_MS)
 
-  if (!response.ok) {
-    let body: ApiErrorBody = {}
-    try {
-      body = (await response.json()) as ApiErrorBody
-    } catch {
-      body = { message: response.statusText }
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...init?.headers,
+      },
+    })
+
+    if (!response.ok) {
+      let body: ApiErrorBody = {}
+      try {
+        body = (await response.json()) as ApiErrorBody
+      } catch {
+        body = { message: response.statusText }
+      }
+      throw new ApiClientError(response.status, body)
     }
-    throw new ApiClientError(response.status, body)
-  }
 
-  if (response.status === 204) {
-    return undefined as T
+    if (response.status === 204) {
+      return undefined as T
+    }
+
+    return (await response.json()) as T
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiClientError(0, {
+        code: 'REQUEST_TIMEOUT',
+        message: 'The API request timed out. Please check that the API is running and try again.',
+      })
+    }
+
+    throw error
+  } finally {
+    window.clearTimeout(timeoutId)
   }
-  return (await response.json()) as T
 }
 
 export const riskApi = {
