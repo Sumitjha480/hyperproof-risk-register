@@ -16,7 +16,7 @@ export function CreateRiskPage() {
       <section className="page-heading">
         <span className="eyebrow">New record</span>
         <h1>Create a risk</h1>
-        <p>Start with the pre-control assessment. Mitigations can be added from the detail view.</p>
+        <p>Start with the pre-control assessment, schedule its next review, and optionally map it to NIST CSF functions.</p>
       </section>
       <RiskForm submitLabel="Create risk" onSubmit={create} />
     </div>

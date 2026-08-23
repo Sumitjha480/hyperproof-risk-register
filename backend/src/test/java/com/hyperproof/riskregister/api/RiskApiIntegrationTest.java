@@ -43,16 +43,16 @@ class RiskApiIntegrationTest {
         String createResponse = mockMvc.perform(post("/api/risks")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "title": "Privileged account compromise",
-                                  "description": "An attacker may gain privileged access.",
-                                  "category": "SECURITY",
-                                  "owner": "Security Engineering",
-                                  "likelihood": 5,
-                                  "impact": 4,
-                                  "status": "OPEN"
-                                }
-                                """))
+                               {
+                                 "title": "Privileged account compromise",
+                                 "description": "An attacker may gain privileged access.",
+                                 "category": "SECURITY",
+                                 "owner": "Security Engineering",
+                                 "likelihood": 5,
+                                 "impact": 4,
+                                 "status": "OPEN"
+                               }
+                               """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.inherentScore").value(20))
                 .andExpect(jsonPath("$.residualScore").value(20))
@@ -66,11 +66,11 @@ class RiskApiIntegrationTest {
         mockMvc.perform(post("/api/risks/{riskId}/mitigations", riskId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "description": "Require phishing-resistant MFA",
-                                  "effectiveness": 5
-                                }
-                                """))
+                               {
+                                 "description": "Require phishing-resistant MFA",
+                                 "effectiveness": 5
+                               }
+                               """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.effectiveness").value(5));
 
@@ -79,6 +79,30 @@ class RiskApiIntegrationTest {
                 .andExpect(jsonPath("$.mitigationCount").value(1))
                 .andExpect(jsonPath("$.residualScore").value(10))
                 .andExpect(jsonPath("$.residualSeverity").value("MEDIUM"));
+    }
+
+    @Test
+    void persistsFrameworkMappingsAndNextReviewDateAndReturnsOverdueFlag() throws Exception {
+        mockMvc.perform(post("/api/risks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                               {
+                                 "title": "Overdue governance risk",
+                                 "description": "A test risk for the stretch fields.",
+                                 "category": "COMPLIANCE",
+                                 "owner": "Compliance",
+                                 "likelihood": 4,
+                                 "impact": 4,
+                                 "status": "MITIGATING",
+                                 "nextReviewDate": "2026-08-22",
+                                 "frameworkFunctions": ["GV", "ID"]
+                               }
+                               """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.reviewOverdue").value(true))
+                .andExpect(jsonPath("$.nextReviewDate").value("2026-08-22"))
+                .andExpect(jsonPath("$.frameworkFunctions[0]").value("GV"))
+                .andExpect(jsonPath("$.frameworkFunctions[1]").value("ID"));
     }
 
     @Test
@@ -93,16 +117,16 @@ class RiskApiIntegrationTest {
         mockMvc.perform(post("/api/risks")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "title": "Invalid risk",
-                                  "description": "Invalid likelihood.",
-                                  "category": "OPERATIONAL",
-                                  "owner": "Operations",
-                                  "likelihood": 6,
-                                  "impact": 4,
-                                  "status": "OPEN"
-                                }
-                                """))
+                               {
+                                 "title": "Invalid risk",
+                                 "description": "Invalid likelihood.",
+                                 "category": "OPERATIONAL",
+                                 "owner": "Operations",
+                                 "likelihood": 6,
+                                 "impact": 4,
+                                 "status": "OPEN"
+                               }
+                               """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.fieldErrors.likelihood").value("likelihood must be an integer between 1 and 5"));
@@ -113,16 +137,16 @@ class RiskApiIntegrationTest {
         mockMvc.perform(post("/api/risks")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "title": "Fractional risk",
-                                  "description": "Likelihood must be a whole number.",
-                                  "category": "OPERATIONAL",
-                                  "owner": "Operations",
-                                  "likelihood": 2.5,
-                                  "impact": 4,
-                                  "status": "OPEN"
-                                }
-                                """))
+                               {
+                                 "title": "Fractional risk",
+                                 "description": "Likelihood must be a whole number.",
+                                 "category": "OPERATIONAL",
+                                 "owner": "Operations",
+                                 "likelihood": 2.5,
+                                 "impact": 4,
+                                 "status": "OPEN"
+                               }
+                               """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("MALFORMED_REQUEST"));
     }
@@ -132,16 +156,16 @@ class RiskApiIntegrationTest {
         String response = mockMvc.perform(post("/api/risks")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "title": "Unmitigated risk",
-                                  "description": "Must remain open.",
-                                  "category": "COMPLIANCE",
-                                  "owner": "Compliance",
-                                  "likelihood": 3,
-                                  "impact": 3,
-                                  "status": "OPEN"
-                                }
-                                """))
+                               {
+                                 "title": "Unmitigated risk",
+                                 "description": "Must remain open.",
+                                 "category": "COMPLIANCE",
+                                 "owner": "Compliance",
+                                 "likelihood": 3,
+                                 "impact": 3,
+                                 "status": "OPEN"
+                               }
+                               """))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -152,16 +176,16 @@ class RiskApiIntegrationTest {
         mockMvc.perform(put("/api/risks/{riskId}", riskId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "title": "Unmitigated risk",
-                                  "description": "Must remain open.",
-                                  "category": "COMPLIANCE",
-                                  "owner": "Compliance",
-                                  "likelihood": 3,
-                                  "impact": 3,
-                                  "status": "CLOSED"
-                                }
-                                """))
+                               {
+                                 "title": "Unmitigated risk",
+                                 "description": "Must remain open.",
+                                 "category": "COMPLIANCE",
+                                 "owner": "Compliance",
+                                 "likelihood": 3,
+                                 "impact": 3,
+                                 "status": "CLOSED"
+                               }
+                               """))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("RISK_CANNOT_CLOSE_WITHOUT_MITIGATION"));
     }
@@ -171,16 +195,16 @@ class RiskApiIntegrationTest {
         String createResponse = mockMvc.perform(post("/api/risks")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "title": "Closed risk with evidence",
-                                  "description": "The final control must remain attached while closed.",
-                                  "category": "FINANCIAL",
-                                  "owner": "Finance",
-                                  "likelihood": 2,
-                                  "impact": 4,
-                                  "status": "OPEN"
-                                }
-                                """))
+                               {
+                                 "title": "Closed risk with evidence",
+                                 "description": "The final control must remain attached while closed.",
+                                 "category": "FINANCIAL",
+                                 "owner": "Finance",
+                                 "likelihood": 2,
+                                 "impact": 4,
+                                 "status": "OPEN"
+                               }
+                               """))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -191,11 +215,11 @@ class RiskApiIntegrationTest {
         String mitigationResponse = mockMvc.perform(post("/api/risks/{riskId}/mitigations", riskId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "description": "Automated duplicate-payment detection",
-                                  "effectiveness": 5
-                                }
-                                """))
+                               {
+                                 "description": "Automated duplicate-payment detection",
+                                 "effectiveness": 5
+                               }
+                               """))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -206,16 +230,16 @@ class RiskApiIntegrationTest {
         mockMvc.perform(put("/api/risks/{riskId}", riskId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "title": "Closed risk with evidence",
-                                  "description": "The final control must remain attached while closed.",
-                                  "category": "FINANCIAL",
-                                  "owner": "Finance",
-                                  "likelihood": 2,
-                                  "impact": 4,
-                                  "status": "CLOSED"
-                                }
-                                """))
+                               {
+                                 "title": "Closed risk with evidence",
+                                 "description": "The final control must remain attached while closed.",
+                                 "category": "FINANCIAL",
+                                 "owner": "Finance",
+                                 "likelihood": 2,
+                                 "impact": 4,
+                                 "status": "CLOSED"
+                               }
+                               """))
                 .andExpect(status().isOk());
 
         mockMvc.perform(delete("/api/risks/{riskId}/mitigations/{mitigationId}", riskId, mitigationId))
@@ -224,3 +248,4 @@ class RiskApiIntegrationTest {
     }
 
 }
+

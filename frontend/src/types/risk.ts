@@ -8,10 +8,12 @@ export const RISK_CATEGORIES = [
 
 export const RISK_STATUSES = ['OPEN', 'MITIGATING', 'CLOSED'] as const
 export const SEVERITY_BANDS = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const
+export const NIST_CSF_FUNCTIONS = ['GV', 'ID', 'PR', 'DE', 'RS', 'RC'] as const
 
 export type RiskCategory = (typeof RISK_CATEGORIES)[number]
 export type RiskStatus = (typeof RISK_STATUSES)[number]
 export type SeverityBand = (typeof SEVERITY_BANDS)[number]
+export type RiskFrameworkFunction = (typeof NIST_CSF_FUNCTIONS)[number]
 export type SortDirection = 'asc' | 'desc'
 
 export interface RiskSummary {
@@ -24,6 +26,9 @@ export interface RiskSummary {
   residualScore: number
   residualSeverity: SeverityBand
   mitigationCount: number
+  nextReviewDate: string | null
+  reviewOverdue: boolean
+  frameworkFunctions: RiskFrameworkFunction[]
   createdAt: string
   updatedAt: string
 }
@@ -52,6 +57,8 @@ export interface RiskPayload {
   likelihood: number
   impact: number
   status: RiskStatus
+  nextReviewDate: string
+  frameworkFunctions: RiskFrameworkFunction[]
 }
 
 export interface MitigationPayload {

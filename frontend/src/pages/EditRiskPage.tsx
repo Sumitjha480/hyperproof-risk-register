@@ -28,6 +28,8 @@ export function EditRiskPage() {
     likelihood: risk.likelihood,
     impact: risk.impact,
     status: risk.status,
+    nextReviewDate: risk.nextReviewDate ?? '',
+    frameworkFunctions: risk.frameworkFunctions,
   }
 
   async function save(values: RiskPayload) {
@@ -40,7 +42,7 @@ export function EditRiskPage() {
       <section className="page-heading">
         <span className="eyebrow">Edit record</span>
         <h1>Edit risk</h1>
-        <p>Changes to likelihood or impact immediately recalculate both scores after save.</p>
+        <p>Update assessment, controls, review timing, and NIST CSF mapping in one place.</p>
       </section>
       <RiskForm
         initialValues={initialValues}
@@ -51,3 +53,4 @@ export function EditRiskPage() {
     </div>
   )
 }
+

@@ -40,7 +40,9 @@ public class RiskService {
                 cleanRequired(request.owner()),
                 request.likelihood(),
                 request.impact(),
-                request.status()
+                request.status(),
+                request.nextReviewDate(),
+                request.frameworkFunctions()
         );
         return mapper.toDetail(riskRepository.save(risk));
     }
@@ -79,7 +81,9 @@ public class RiskService {
                 cleanRequired(request.owner()),
                 request.likelihood(),
                 request.impact(),
-                request.status()
+                request.status(),
+                request.nextReviewDate(),
+                request.frameworkFunctions()
         );
         return mapper.toDetail(risk);
     }

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ApiClientError } from '../api/client'
+import { FrameworkMappingPicker } from './FrameworkMappingPicker'
 import {
   RISK_CATEGORIES,
   RISK_STATUSES,
@@ -25,6 +26,8 @@ const defaultValues: RiskPayload = {
   likelihood: 3,
   impact: 3,
   status: 'OPEN',
+ nextReviewDate: '',
+ frameworkFunctions: [],
 }
 
 export function RiskForm({
@@ -164,9 +167,7 @@ export function RiskForm({
               value={values.likelihood}
               onChange={(event) => update('likelihood', Number(event.target.value))}
             >
-              {[1, 2, 3, 4, 5].map((value) => (
-                <option key={value} value={value}>{value}</option>
-              ))}
+              {[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>{value}</option>)}
             </select>
             <small>1 = rare, 5 = almost certain</small>
           </label>
@@ -177,14 +178,12 @@ export function RiskForm({
               value={values.impact}
               onChange={(event) => update('impact', Number(event.target.value))}
             >
-              {[1, 2, 3, 4, 5].map((value) => (
-                <option key={value} value={value}>{value}</option>
-              ))}
+              {[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>{value}</option>)}
             </select>
             <small>1 = minimal, 5 = severe</small>
           </label>
 
-          <label className="field field-span-2">
+          <label className="field">
             <span>Status</span>
             <select
               value={values.status}
@@ -196,11 +195,35 @@ export function RiskForm({
                 </option>
               ))}
             </select>
-            {closedDisabled && (
-              <small>A risk can be closed only after at least one mitigation is recorded.</small>
-            )}
+            {closedDisabled && <small>A risk can be closed only after at least one mitigation is recorded.</small>}
+          </label>
+
+          <label className="field">
+            <span>Next review date</span>
+            <input
+              type="date"
+              value={values.nextReviewDate}
+              onChange={(event) => update('nextReviewDate', event.target.value)}
+              aria-invalid={Boolean(fieldErrors.nextReviewDate)}
+            />
+            {fieldErrors.nextReviewDate && <small className="field-error">{fieldErrors.nextReviewDate}</small>}
+            <small>Past dates are allowed so overdue records can be backfilled and surfaced.</small>
           </label>
         </div>
+      </div>
+
+      <div className="form-section">
+        <div className="section-heading">
+          <div>
+            <span className="eyebrow">Framework mapping</span>
+            <h2>NIST CSF 2.0 functions</h2>
+           </div>
+          <p>Select any functions that are relevant to this risk. This is a deliberately small hardcoded catalog for the stretch goal.</p>
+        </div>
+        <FrameworkMappingPicker
+          values={values.frameworkFunctions}
+          onChange={(next) => update('frameworkFunctions', next)}
+        />
       </div>
 
       <div className="form-actions">

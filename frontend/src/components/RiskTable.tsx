@@ -16,6 +16,7 @@ export function RiskTable({ risks }: { risks: RiskSummary[] }) {
             <th scope="col">Inherent</th>
             <th scope="col">Residual</th>
             <th scope="col">Mitigations</th>
+            <th scope="col">Review</th>
             <th scope="col"><span className="sr-only">Actions</span></th>
           </tr>
         </thead>
@@ -33,6 +34,9 @@ export function RiskTable({ risks }: { risks: RiskSummary[] }) {
               <td><ScoreBadge score={risk.residualScore} severity={risk.residualSeverity} compact /></td>
               <td>
                 <span className="count-pill">{risk.mitigationCount}</span>
+              </td>
+              <td>
+                {risk.reviewOverdue ? <span className="overdue-badge">Overdue</span> : risk.nextReviewDate ? new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(`${risk.nextReviewDate}T00:00:00`)) : 'Not set'}
               </td>
               <td className="table-action">
                 <Link className="text-link" to={`/risks/${risk.id}`}>View</Link>

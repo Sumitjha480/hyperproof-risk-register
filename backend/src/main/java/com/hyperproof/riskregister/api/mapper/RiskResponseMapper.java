@@ -7,15 +7,18 @@ import com.hyperproof.riskregister.domain.Mitigation;
 import com.hyperproof.riskregister.domain.Risk;
 import com.hyperproof.riskregister.scoring.RiskScore;
 import com.hyperproof.riskregister.scoring.RiskScoringService;
+import com.hyperproof.riskregister.service.ReviewPolicy;
 import org.springframework.stereotype.Component;
 
 @Component
 public class RiskResponseMapper {
 
     private final RiskScoringService scoringService;
+    private final ReviewPolicy reviewPolicy;
 
-    public RiskResponseMapper(RiskScoringService scoringService) {
+    public RiskResponseMapper(RiskScoringService scoringService, ReviewPolicy reviewPolicy) {
         this.scoringService = scoringService;
+        this.reviewPolicy = reviewPolicy;
     }
 
     public RiskSummaryResponse toSummary(Risk risk) {
@@ -30,6 +33,9 @@ public class RiskResponseMapper {
                 score.residualScore(),
                 score.residualSeverity(),
                 risk.getMitigations().size(),
+                risk.getNextReviewDate(),
+                reviewPolicy.isOverdue(risk.getNextReviewDate(), risk.getStatus()),
+                risk.getFrameworkFunctions(),
                 risk.getCreatedAt(),
                 risk.getUpdatedAt()
         );
@@ -52,6 +58,9 @@ public class RiskResponseMapper {
                 score.residualSeverity(),
                 risk.getMitigations().size(),
                 risk.getMitigations().stream().map(this::toMitigation).toList(),
+                risk.getNextReviewDate(),
+                reviewPolicy.isOverdue(risk.getNextReviewDate(), risk.getStatus()),
+                risk.getFrameworkFunctions(),
                 risk.getCreatedAt(),
                 risk.getUpdatedAt()
         );

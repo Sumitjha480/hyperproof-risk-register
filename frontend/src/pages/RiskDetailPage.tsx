@@ -7,6 +7,18 @@ import { ScoreBadge } from '../components/ScoreBadge'
 import { StatusBadge } from '../components/StatusBadge'
 import type { Mitigation, MitigationPayload, RiskDetail } from '../types/risk'
 import { effectivenessLabel, formatDate, labelForEnum } from '../utils/format'
+import { residualScore, severityFor } from '../utils/scoring'
+
+function applyOptimisticMitigations(risk: RiskDetail, mitigations: Mitigation[]): RiskDetail {
+ const residual = residualScore(risk.inherentScore, mitigations.map((item) => item.effectiveness))
+ return {
+   ...risk,
+   mitigations,
+   mitigationCount: mitigations.length,
+   residualScore: residual,
+   residualSeverity: severityFor(residual),
+ }
+}
 
 export function RiskDetailPage() {
   const { riskId } = useParams<{ riskId: string }>()
@@ -16,6 +28,7 @@ export function RiskDetailPage() {
   const [error, setError] = useState('')
   const [actionError, setActionError] = useState('')
   const [editingMitigationId, setEditingMitigationId] = useState<string | null>(null)
+  const [optimisticAction, setOptimisticAction] = useState('')
 
   const loadRisk = useCallback(async () => {
     if (!riskId) return
@@ -38,33 +51,74 @@ export function RiskDetailPage() {
   if (loading) return <div className="loading-line" role="status">Loading risk…</div>
   if (error || !risk) return <PageMessage tone="error" title="Risk not available" message={error || 'Risk not found.'} />
 
+  const resolvedRiskId = riskId
+  const currentRisk = risk
   async function addMitigation(payload: MitigationPayload) {
-    await riskApi.addMitigation(riskId!, payload)
-    await loadRisk()
-  }
+   setActionError('')
+   setOptimisticAction('Saving mitigation…')
+   const temporaryId = `optimistic-${crypto.randomUUID()}`
+   const optimisticMitigation: Mitigation = {
+     id: temporaryId,
+     riskId,
+     description: payload.description,
+     effectiveness: payload.effectiveness,
+     createdAt: new Date().toISOString(),
+   }
+   const previous = risk
+   setRisk(applyOptimisticMitigations(previous, [...previous.mitigations, optimisticMitigation]))
+   try {
+      await riskApi.addMitigation(riskId, payload)
+      await loadRisk()
+   } catch (caught) {
+     setRisk(previous)
+     throw caught
+   } finally {
+     setOptimisticAction('')
+   }
+ }
 
-  async function updateMitigation(mitigationId: string, payload: MitigationPayload) {
-    await riskApi.updateMitigation(riskId!, mitigationId, payload)
-    setEditingMitigationId(null)
-    await loadRisk()
-  }
+ async function updateMitigation(mitigationId: string, payload: MitigationPayload) {
+   setActionError('')
+   setOptimisticAction('Saving mitigation…')
+   const previous = risk
+   const updated = risk.mitigations.map((mitigation) =>
+     mitigation.id === mitigationId ? { ...mitigation, ...payload } : mitigation,
+   )
+   setRisk(applyOptimisticMitigations(risk, updated))
+   try {
+      await riskApi.updateMitigation(riskId, mitigationId, payload)
+      setEditingMitigationId(null)
+      await loadRisk()
+   } catch (caught) {
+     setRisk(previous)
+     throw caught
+   } finally {
+     setOptimisticAction('')
+   }
+ }
 
   async function deleteMitigation(mitigation: Mitigation) {
     if (!window.confirm('Delete this mitigation? The residual score will be recalculated.')) return
     setActionError('')
+    setOptimisticAction('Deleting mitigation…')
+    const previous = risk
+    setRisk(applyOptimisticMitigations(risk, risk.mitigations.filter((item) => item.id !== mitigation.id)))
     try {
-      await riskApi.deleteMitigation(riskId!, mitigation.id)
+      await riskApi.deleteMitigation(riskId, mitigation.id)
       await loadRisk()
     } catch (caught) {
+      setRisk(previous)
       setActionError(caught instanceof ApiClientError ? caught.message : 'The mitigation could not be deleted.')
+    } finally {
+      setOptimisticAction('')
     }
   }
 
   async function deleteRisk() {
-    if (!window.confirm(`Delete “${risk!.title}” and all of its mitigations?`)) return
+    if (!window.confirm(`Delete “${risk.title}” and all of its mitigations?`)) return
     setActionError('')
     try {
-      await riskApi.delete(riskId!)
+      await riskApi.delete(riskId)
       navigate('/')
     } catch (caught) {
       setActionError(caught instanceof ApiClientError ? caught.message : 'The risk could not be deleted.')
@@ -80,6 +134,7 @@ export function RiskDetailPage() {
           <div className="detail-kicker">
             <span>{labelForEnum(risk.category)}</span>
             <StatusBadge status={risk.status} />
+           {risk.reviewOverdue && <span className="overdue-badge">Review overdue</span>}
           </div>
           <h1>{risk.title}</h1>
           <p>{risk.description || 'No description provided.'}</p>
@@ -91,6 +146,7 @@ export function RiskDetailPage() {
       </section>
 
       {actionError && <div className="inline-alert" role="alert">{actionError}</div>}
+      {optimisticAction && <div className="optimistic-note" role="status">{optimisticAction} The screen is showing the expected result while the server confirms it.</div>}
 
       <section className="score-grid">
         <article className="score-card">
@@ -123,7 +179,22 @@ export function RiskDetailPage() {
             <div><dt>Status</dt><dd><StatusBadge status={risk.status} /></dd></div>
             <div><dt>Created</dt><dd>{formatDate(risk.createdAt)}</dd></div>
             <div><dt>Last updated</dt><dd>{formatDate(risk.updatedAt)}</dd></div>
+            <div><dt>Next review</dt><dd>{risk.nextReviewDate ? formatDate(risk.nextReviewDate) : 'Not scheduled'}</dd></div>
           </dl>
+          {risk.reviewOverdue && (
+            <div className="rule-note rule-note-danger">
+              <strong>Review overdue</strong>
+              <span>The next review date has passed. Update the review date or complete the review.</span>
+            </div>
+          )}
+          {risk.frameworkFunctions.length > 0 && (
+            <div className="framework-summary">
+              <span className="eyebrow">NIST CSF mapping</span>
+              <div className="mapping-chips">
+                {risk.frameworkFunctions.map((value) => <span className="mapping-chip" key={value}>{labelForEnum(value)}</span>)}
+              </div>
+            </div>
+          )}
           {risk.mitigationCount === 0 && (
             <div className="rule-note">
               <strong>Closure blocked</strong>
@@ -149,10 +220,7 @@ export function RiskDetailPage() {
                 <li key={mitigation.id}>
                   {editingMitigationId === mitigation.id ? (
                     <MitigationForm
-                      initialValues={{
-                        description: mitigation.description,
-                        effectiveness: mitigation.effectiveness,
-                      }}
+                      initialValues={{ description: mitigation.description, effectiveness: mitigation.effectiveness }}
                       submitLabel="Save mitigation"
                       onSubmit={(payload) => updateMitigation(mitigation.id, payload)}
                       onCancel={() => setEditingMitigationId(null)}

@@ -11,10 +11,15 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -57,6 +62,15 @@ public class Risk {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column(name = "next_review_date")
+    private LocalDate nextReviewDate;
+
+    @ElementCollection
+    @CollectionTable(name = "risk_framework_mappings", joinColumns = @JoinColumn(name = "risk_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "framework_function", nullable = false, length = 8)
+    private java.util.Set<RiskFrameworkFunction> frameworkFunctions = new HashSet<>();
+
     @OneToMany(mappedBy = "risk", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("createdAt ASC")
     private List<Mitigation> mitigations = new ArrayList<>();
@@ -76,6 +90,20 @@ public class Risk {
         update(title, description, category, owner, likelihood, impact, status);
     }
 
+    public Risk(
+            String title,
+            String description,
+            RiskCategory category,
+            String owner,
+            int likelihood,
+            int impact,
+            RiskStatus status,
+            LocalDate nextReviewDate,
+            java.util.Set<RiskFrameworkFunction> frameworkFunctions
+    ) {
+        update(title, description, category, owner, likelihood, impact, status, nextReviewDate, frameworkFunctions);
+    }
+
     public void update(
             String title,
             String description,
@@ -85,6 +113,20 @@ public class Risk {
             int impact,
             RiskStatus status
     ) {
+        update(title, description, category, owner, likelihood, impact, status, nextReviewDate, frameworkFunctions);
+    }
+
+    public void update(
+            String title,
+            String description,
+            RiskCategory category,
+            String owner,
+            int likelihood,
+            int impact,
+            RiskStatus status,
+            LocalDate nextReviewDate,
+            java.util.Set<RiskFrameworkFunction> frameworkFunctions
+    ) {
         this.title = title;
         this.description = description;
         this.category = category;
@@ -92,6 +134,11 @@ public class Risk {
         this.likelihood = likelihood;
         this.impact = impact;
         this.status = status;
+        this.nextReviewDate = nextReviewDate;
+        this.frameworkFunctions.clear();
+        if (frameworkFunctions != null) {
+            this.frameworkFunctions.addAll(frameworkFunctions);
+        }
         touch();
     }
 
@@ -166,7 +213,16 @@ public class Risk {
         return updatedAt;
     }
 
+    public LocalDate getNextReviewDate() {
+        return nextReviewDate;
+    }
+
+    public java.util.Set<RiskFrameworkFunction> getFrameworkFunctions() {
+        return java.util.Collections.unmodifiableSet(frameworkFunctions);
+    }
+
     public List<Mitigation> getMitigations() {
         return mitigations;
     }
 }
+

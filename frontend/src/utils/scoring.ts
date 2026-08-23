@@ -4,6 +4,13 @@ export function inherentScore(likelihood: number, impact: number): number {
   return likelihood * impact
 }
 
+export function residualScore(inherent: number, effectivenesses: number[]): number {
+ return Math.max(
+   1,
+   Math.ceil(effectivenesses.reduce((remaining, effectiveness) => remaining * (1 - 0.1 * effectiveness), inherent)),
+ )
+}
+
 export function severityFor(score: number): SeverityBand {
   if (!Number.isInteger(score) || score < 1 || score > 25) {
     throw new Error('score must be an integer between 1 and 25')
