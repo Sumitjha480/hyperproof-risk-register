@@ -53,22 +53,23 @@ export function RiskDetailPage() {
 
   const resolvedRiskId = riskId
   const currentRisk = risk
+
   async function addMitigation(payload: MitigationPayload) {
    setActionError('')
    setOptimisticAction('Saving mitigation…')
    const temporaryId = `optimistic-${crypto.randomUUID()}`
    const optimisticMitigation: Mitigation = {
      id: temporaryId,
-     riskId,
+     riskId: resolvedRiskId,
      description: payload.description,
      effectiveness: payload.effectiveness,
      createdAt: new Date().toISOString(),
    }
-   const previous = risk
+   const previous = currentRisk
    setRisk(applyOptimisticMitigations(previous, [...previous.mitigations, optimisticMitigation]))
    try {
-      await riskApi.addMitigation(riskId, payload)
-      await loadRisk()
+     await riskApi.addMitigation(resolvedRiskId, payload)
+     await loadRisk()
    } catch (caught) {
      setRisk(previous)
      throw caught
@@ -80,15 +81,15 @@ export function RiskDetailPage() {
  async function updateMitigation(mitigationId: string, payload: MitigationPayload) {
    setActionError('')
    setOptimisticAction('Saving mitigation…')
-   const previous = risk
-   const updated = risk.mitigations.map((mitigation) =>
+   const previous = currentRisk
+   const updated = currentRisk.mitigations.map((mitigation) =>
      mitigation.id === mitigationId ? { ...mitigation, ...payload } : mitigation,
    )
-   setRisk(applyOptimisticMitigations(risk, updated))
+   setRisk(applyOptimisticMitigations(currentRisk, updated))
    try {
-      await riskApi.updateMitigation(riskId, mitigationId, payload)
-      setEditingMitigationId(null)
-      await loadRisk()
+     await riskApi.updateMitigation(resolvedRiskId, mitigationId, payload)
+     setEditingMitigationId(null)
+     await loadRisk()
    } catch (caught) {
      setRisk(previous)
      throw caught
@@ -101,10 +102,10 @@ export function RiskDetailPage() {
     if (!window.confirm('Delete this mitigation? The residual score will be recalculated.')) return
     setActionError('')
     setOptimisticAction('Deleting mitigation…')
-    const previous = risk
-    setRisk(applyOptimisticMitigations(risk, risk.mitigations.filter((item) => item.id !== mitigation.id)))
+    const previous = currentRisk
+    setRisk(applyOptimisticMitigations(currentRisk, currentRisk.mitigations.filter((item) => item.id !== mitigation.id)))
     try {
-      await riskApi.deleteMitigation(riskId, mitigation.id)
+      await riskApi.deleteMitigation(resolvedRiskId, mitigation.id)
       await loadRisk()
     } catch (caught) {
       setRisk(previous)
@@ -115,10 +116,10 @@ export function RiskDetailPage() {
   }
 
   async function deleteRisk() {
-    if (!window.confirm(`Delete “${risk.title}” and all of its mitigations?`)) return
+    if (!window.confirm(`Delete “${currentRisk.title}” and all of its mitigations?`)) return
     setActionError('')
     try {
-      await riskApi.delete(riskId)
+      await riskApi.delete(resolvedRiskId)
       navigate('/')
     } catch (caught) {
       setActionError(caught instanceof ApiClientError ? caught.message : 'The risk could not be deleted.')
