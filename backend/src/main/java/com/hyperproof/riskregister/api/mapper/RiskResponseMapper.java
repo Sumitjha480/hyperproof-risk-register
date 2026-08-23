@@ -10,6 +10,8 @@ import com.hyperproof.riskregister.scoring.RiskScoringService;
 import com.hyperproof.riskregister.service.ReviewPolicy;
 import org.springframework.stereotype.Component;
 
+import java.util.Set;
+
 @Component
 public class RiskResponseMapper {
 
@@ -35,7 +37,7 @@ public class RiskResponseMapper {
                 risk.getMitigations().size(),
                 risk.getNextReviewDate(),
                 reviewPolicy.isOverdue(risk.getNextReviewDate(), risk.getStatus()),
-                risk.getFrameworkFunctions(),
+                Set.copyOf(risk.getFrameworkFunctions()),
                 risk.getCreatedAt(),
                 risk.getUpdatedAt()
         );
@@ -60,7 +62,7 @@ public class RiskResponseMapper {
                 risk.getMitigations().stream().map(this::toMitigation).toList(),
                 risk.getNextReviewDate(),
                 reviewPolicy.isOverdue(risk.getNextReviewDate(), risk.getStatus()),
-                risk.getFrameworkFunctions(),
+                Set.copyOf(risk.getFrameworkFunctions()),
                 risk.getCreatedAt(),
                 risk.getUpdatedAt()
         );
