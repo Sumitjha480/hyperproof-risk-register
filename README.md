@@ -553,6 +553,7 @@ The backend tests cover:
 Run backend tests from the project root:
 
 ```bash
+(For Local setup/ non docker. Mvn should be installed)
 cd backend
 mvn test
 ```
@@ -564,6 +565,7 @@ mvn test
 Run frontend tests:
 
 ```bash
+(For Local setup/ non docker. correct Npm modules should be installed)
 cd frontend
 npm test
 ```
