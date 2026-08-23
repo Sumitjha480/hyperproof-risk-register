@@ -1,283 +1,683 @@
 # Risk Register
 
-A complete full-stack implementation of the Risk Management take-home assignment: a Spring Boot API backed by PostgreSQL and a React/TypeScript dashboard for creating, scoring, mitigating, filtering, editing, and deleting risks.
+A small full-stack Risk Register application built as a take-home assignment for a Software Engineer, Risk Management role.
 
-The repository intentionally implements the core assignment only. Framework mappings, next-review dates, and optimistic updates are not included, but the domain, persistence, service, and DTO boundaries leave clean extension points for them.
+The application allows users to create and manage organizational risks, calculate inherent and residual risk scores, attach mitigations, filter and sort risks, and view the most important risks from a dashboard.
 
-## Run the complete application
+The core implementation follows the requirements in the assignment, with the optional stretch goals also implemented.
 
-### Prerequisite
+## Tech Stack
 
-Install Docker Desktop, or Docker Engine with Docker Compose v2.
+### Backend
 
-### One command
+* Java 21
+* Spring Boot
+* Spring Data JPA / Hibernate
+* PostgreSQL
+* Flyway
+* Maven
+* JUnit 5
+* Spring Boot integration testing
+
+### Frontend
+
+* React
+* TypeScript
+* Vite
+* CSS
+* Vitest
+
+### Local Runtime
+
+* Docker
+* Docker Compose
+
+Docker is provided as a convenience for running the full application locally. Authentication, deployment infrastructure, and CI/CD are intentionally outside the scope of the assignment.
+
+---
+
+## Features
+
+### Core Features
+
+* Create, view, edit, and delete risks.
+* Risk fields:
+
+  * Title
+  * Description
+  * Category
+  * Owner
+  * Likelihood
+  * Impact
+  * Status
+  * Created timestamp
+  * Updated timestamp
+* Risk categories:
+
+  * Operational
+  * Financial
+  * Compliance
+  * Security
+  * Strategic
+* Risk statuses:
+
+  * Open
+  * Mitigating
+  * Closed
+* Add, edit, and delete mitigations.
+* Mitigation effectiveness from 1–5.
+* Automatic inherent and residual risk scoring.
+* Severity bands:
+
+  * Low
+  * Medium
+  * High
+  * Critical
+* Dashboard filtering by category and status.
+* Dashboard sorting by residual risk.
+* Risk detail page with mitigations and score information.
+* Validation for likelihood, impact, and mitigation effectiveness.
+* PostgreSQL persistence.
+* API and scoring tests.
+
+### Stretch Goals
+
+The optional features from the assignment are also implemented:
+
+1. NIST CSF framework mapping.
+2. Next review date with overdue indication.
+3. Loading and error states.
+4. Optimistic updates for mitigation operations with rollback on failure.
+
+---
+
+# Running the Application
+
+## Prerequisites
+
+The easiest way to run the complete application is with Docker Desktop.
+
+You will need:
+
+* Docker Desktop
+* Docker Compose
+
+Verify Docker is available:
 
 ```bash
-./run.sh
+docker --version
+docker compose version
 ```
 
-Equivalent command on any platform:
+---
+
+## Start the Application
+
+From the project root:
 
 ```bash
 docker compose up --build
 ```
 
-Then open:
+The first build may take longer because Docker needs to download the Maven, Node, PostgreSQL, and Nginx images and dependencies.
 
-- Web application: `http://localhost:3000`
-- Backend API: `http://localhost:8080/api/risks`
+Once the containers are running:
 
-The Compose stack starts PostgreSQL, applies the Flyway migration, starts the API, builds the frontend, and loads a small demo register only when the database is empty.
+### Frontend
 
-Stop the application with:
-
-```bash
-./stop.sh
+```text
+http://localhost:3000
 ```
 
-or:
+### Backend API
+
+```text
+http://localhost:8080
+```
+
+### PostgreSQL
+
+```text
+localhost:5432
+```
+
+The application creates and migrates the PostgreSQL schema automatically using Flyway.
+
+---
+
+## Start Using the Application
+
+Open:
+
+```text
+http://localhost:3000
+```
+
+From the dashboard you can:
+
+1. Create a risk.
+2. Set its likelihood and impact.
+3. View the calculated inherent score.
+4. Add mitigations.
+5. Observe the residual score change.
+6. Filter and sort risks.
+7. Open the detail page.
+8. Add or edit mitigations.
+9. Map the risk to NIST CSF functions.
+10. Set its next review date.
+
+---
+
+## Stop the Application
+
+To stop the containers:
 
 ```bash
 docker compose down
 ```
 
-To also remove persisted local data and return to the original demo state:
+To stop the application and also remove the local PostgreSQL data volume:
 
 ```bash
 docker compose down -v
 ```
 
-## Run all automated checks
+`docker compose down -v` deletes the local database data, so use it only when you want to reset the application to a clean state.
+
+---
+
+# Backend API
+
+The main endpoints are:
+
+## Risks
+
+```text
+POST   /api/risks
+GET    /api/risks
+GET    /api/risks/{id}
+PUT    /api/risks/{id}
+DELETE /api/risks/{id}
+```
+
+The list endpoint supports filtering by category and status and sorting by residual score.
+
+Example:
 
 ```bash
-./test-all.sh
+curl "http://localhost:8080/api/risks?sort=residualScore,desc"
 ```
 
-The command runs:
-
-1. Backend unit and API integration tests.
-2. Frontend scoring tests.
-3. A production frontend TypeScript/build check.
-
-When Docker is installed, the script uses pinned Maven and Node containers. Without Docker, it falls back to the included Maven bootstrap script plus local Node/npm.
-
-## What is implemented
-
-### Backend
-
-- Java 21 and Spring Boot.
-- PostgreSQL persistence with a versioned Flyway migration.
-- Risk create, list, get, update, and delete endpoints.
-- Category and status filtering.
-- Residual-score ascending or descending sorting, descending by default.
-- Mitigation create, update, and delete endpoints scoped under a risk.
-- Bean validation, strict JSON integer parsing, and database check constraints for every 1–5 scale.
-- Structured JSON errors for validation, not-found, malformed input, and business-rule conflicts.
-- Pure scoring component with boundary-focused unit tests.
-- MockMvc integration tests covering the complete create-risk → add-mitigation → fetch-risk flow.
-
-### Frontend
-
-- React and strict TypeScript using Vite.
-- Dashboard table with category, status, inherent score, residual score, and mitigation count.
-- Readable Low / Medium / High / Critical color treatment.
-- Category and status filters plus residual-score ordering.
-- Create and edit forms with live inherent-score calculation.
-- Risk detail view with ownership, lifecycle, score comparison, and mitigations.
-- Add, edit, and delete mitigation controls; the detail view reloads the server-derived residual score after each mutation.
-- Risk deletion and a clear empty-state experience.
-- Responsive layout without a third-party component library.
-
-## Scoring decisions
-
-### Inherent risk
+## Mitigations
 
 ```text
-inherent = likelihood × impact
+POST   /api/risks/{riskId}/mitigations
+PUT    /api/risks/{riskId}/mitigations/{mitigationId}
+DELETE /api/risks/{riskId}/mitigations/{mitigationId}
 ```
 
-Both inputs are integers from 1 through 5, so the result is 1 through 25.
+---
 
-### Residual risk
+# Risk Scoring
 
-For a risk with inherent score `I` and mitigation effectiveness values `e1 ... en`:
+## Inherent Risk
+
+The inherent risk score is:
 
 ```text
-residual = max(1, ceil(I × product(1 - 0.10 × ei)))
+Likelihood × Impact
+```
+
+Since both values are constrained to 1–5:
+
+```text
+Minimum = 1
+Maximum = 25
 ```
 
 Examples:
 
 ```text
-Inherent 20, no mitigations       => 20
-Inherent 20, one effectiveness 5  => ceil(20 × 0.50) = 10
-Inherent 20, effectiveness 3 + 4  => ceil(20 × 0.70 × 0.60) = 9
+Likelihood = 2
+Impact = 3
+
+Inherent score = 2 × 3 = 6
 ```
-
-Rationale:
-
-- No mitigations leave residual equal to inherent.
-- Each effectiveness point removes 10% of the risk still remaining, so effectiveness 5 is a meaningful 50% reduction.
-- Compounding models diminishing returns and prevents several controls from producing an impossible negative score.
-- Rounding upward is deliberately conservative for a compliance product; a fractional result never understates exposure.
-- The final `max(1, ...)` preserves the required lower bound.
-
-This is a deliberately transparent heuristic, not a claim that controls are statistically independent. A production product could make the model configurable by organization or framework.
-
-### Severity bands
-
-| Score | Band |
-|---:|---|
-| 1–5 | Low |
-| 6–12 | Medium |
-| 13–19 | High |
-| 20–25 | Critical |
-
-Scores are derived at read time rather than persisted. This prevents stale values when a mitigation changes.
-
-## Closed-risk business rule
-
-A risk cannot be marked `CLOSED` while it has zero mitigations. The API returns HTTP `409 Conflict` with code:
 
 ```text
-RISK_CANNOT_CLOSE_WITHOUT_MITIGATION
+Likelihood = 5
+Impact = 5
+
+Inherent score = 5 × 5 = 25
 ```
 
-For a compliance system, closure should represent an evidenced treatment decision rather than an administrative status change. Requiring at least one recorded mitigation creates a minimal audit trail and avoids presenting an untreated risk as resolved.
+---
 
-The same invariant is protected in reverse: the API blocks deletion of the final mitigation from a closed risk. The user must first reopen the risk, so no supported API sequence can leave a closed risk with no controls.
+## Residual Risk
 
-## API
+The assignment intentionally leaves the residual-risk formula open and asks for a reasonable formula that reduces the inherent risk based on mitigation effectiveness.
 
-Base path: `/api`
-
-| Method | Path | Purpose |
-|---|---|---|
-| `POST` | `/risks` | Create a risk |
-| `GET` | `/risks` | List risks |
-| `GET` | `/risks/{riskId}` | Get risk details |
-| `PUT` | `/risks/{riskId}` | Replace editable risk fields |
-| `DELETE` | `/risks/{riskId}` | Delete a risk and its mitigations |
-| `POST` | `/risks/{riskId}/mitigations` | Add a mitigation |
-| `PUT` | `/risks/{riskId}/mitigations/{mitigationId}` | Update a mitigation |
-| `DELETE` | `/risks/{riskId}/mitigations/{mitigationId}` | Delete a mitigation |
-
-List query parameters:
+The implementation uses:
 
 ```text
-category=SECURITY
-status=OPEN
-sort=residualScore,desc
+residual = max(
+    1,
+    ceil(
+        inherent × product(1 - 0.10 × effectiveness)
+    )
+)
 ```
 
-`sort` accepts `residualScore,desc` or `residualScore,asc`.
+where each mitigation has an effectiveness from 1–5.
 
-Example error body:
+This gives the following reduction for each mitigation:
 
-```json
-{
-  "timestamp": "2026-08-19T10:00:00Z",
-  "status": 400,
-  "error": "Bad Request",
-  "code": "VALIDATION_ERROR",
-  "message": "One or more fields are invalid",
-  "path": "/api/risks",
-  "fieldErrors": {
-    "likelihood": "likelihood must be an integer between 1 and 5"
-  }
-}
+```text
+Effectiveness 1 → 10% reduction
+Effectiveness 2 → 20% reduction
+Effectiveness 3 → 30% reduction
+Effectiveness 4 → 40% reduction
+Effectiveness 5 → 50% reduction
 ```
 
-A ready-to-use request collection is in [`requests.http`](./requests.http).
+Multiple mitigations compound.
 
-## Local development without the full Compose stack
+### Example
 
-### Backend
+Suppose:
 
-Requirements: Java 21 and a PostgreSQL database.
+```text
+Likelihood = 4
+Impact = 5
+```
+
+Then:
+
+```text
+Inherent = 4 × 5 = 20
+```
+
+With one mitigation of effectiveness 5:
+
+```text
+Residual = ceil(20 × 0.50)
+         = 10
+```
+
+With two mitigations of effectiveness 5:
+
+```text
+Residual = ceil(20 × 0.50 × 0.50)
+         = 5
+```
+
+The residual score is always floored at 1.
+
+### Why this formula?
+
+The formula was chosen because it satisfies all required sanity checks:
+
+* A risk with zero mitigations has residual = inherent.
+* A highly effective mitigation meaningfully reduces the risk.
+* Additional mitigations provide additional reduction.
+* Residual risk can never fall below 1.
+
+Using a multiplicative approach also avoids simply subtracting arbitrary fixed points from a score and reflects the idea that controls reduce the exposure that remains after previous controls.
+
+---
+
+# Severity Bands
+
+The severity bands are applied to both inherent and residual scores.
+
+```text
+1–5    → Low
+6–12   → Medium
+13–19  → High
+20–25  → Critical
+```
+
+Examples:
+
+```text
+Score 4  → Low
+Score 10 → Medium
+Score 16 → High
+Score 23 → Critical
+```
+
+The frontend uses visually distinct severity indicators so high-risk items can be recognized without reading every number.
+
+---
+
+# Business Rules
+
+## Closing a Risk
+
+A risk cannot be moved to `CLOSED` when it has no mitigations.
+
+This was treated as a compliance-oriented business rule because a closed risk should represent a risk that has been actively addressed rather than merely recorded.
+
+Attempting to close a risk without a mitigation returns a `409 Conflict` response.
+
+## Deleting the Final Mitigation
+
+A closed risk cannot have its final mitigation removed.
+
+This prevents the system from ending up with a closed risk that has no documented control.
+
+## Validation
+
+Likelihood, impact, and mitigation effectiveness must each be integer values from 1 to 5.
+
+Invalid requests are rejected with a clear 4xx response.
+
+Validation is applied at multiple layers where appropriate so invalid data cannot silently enter the system.
+
+---
+
+# Optional Stretch Goals
+
+## 1. NIST CSF Mapping
+
+A risk can be mapped to one or more NIST Cybersecurity Framework functions:
+
+```text
+GV  Govern
+ID  Identify
+PR  Protect
+DE  Detect
+RS  Respond
+RC  Recover
+```
+
+The mappings are persisted independently of the scoring calculation.
+
+This keeps framework-specific metadata separate from the core risk-scoring model.
+
+---
+
+## 2. Next Review Date
+
+A risk can have a next review date.
+
+The backend determines whether the review is overdue.
+
+For active risks:
+
+```text
+Review date in the future → not overdue
+Review date in the past   → overdue
+```
+
+Closed risks are not treated as active overdue reviews.
+
+The review logic uses an injected `Clock`, which makes the behavior deterministic and straightforward to test.
+
+---
+
+## 3. Loading and Error States
+
+The frontend handles common API states explicitly:
+
+```text
+Loading
+Success
+Empty
+Error
+Retry
+```
+
+For example, if the backend is unavailable, the dashboard displays an error state instead of failing silently.
+
+To test this manually:
+
+```bash
+docker compose stop backend
+```
+
+Refresh the frontend and the dashboard should show an API error state.
+
+Restart the backend:
+
+```bash
+docker compose start backend
+```
+
+Then use the Retry action.
+
+---
+
+## 4. Optimistic Updates
+
+Mitigation create, edit, and delete operations use optimistic updates.
+
+Instead of waiting for the API response before updating the UI:
+
+```text
+User action
+    ↓
+Update UI immediately
+    ↓
+Send API request
+    ↓
+Success → reconcile with server state
+Failure → restore previous state
+```
+
+This makes the interface feel more responsive while still maintaining consistency when an API call fails.
+
+The implementation also contains rollback behavior for failed mutations.
+
+---
+
+# Database
+
+PostgreSQL is used for persistence.
+
+Flyway manages schema migrations.
+
+Current migrations include:
+
+```text
+V1 - create risk register
+V2 - add risk review and framework mapping
+```
+
+The second migration introduces the storage required for:
+
+* next review dates
+* framework mappings
+
+The database schema is automatically initialized when the backend starts against a new database.
+
+---
+
+# Project Structure
+
+```text
+.
+├── backend/
+│   ├── pom.xml
+│   └── src/
+│       ├── main/
+│       │   ├── java/
+│       │   │   └── com/hyperproof/riskregister/
+│       │   └── resources/
+│       │       └── db/migration/
+│       └── test/
+│
+├── frontend/
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   └── src/
+│       ├── api/
+│       ├── components/
+│       ├── pages/
+│       ├── types/
+│       └── utils/
+│
+├── docker-compose.yml
+├── run.sh
+├── test-all.sh
+├── .gitignore
+└── README.md
+```
+
+The frontend and backend are kept separately so that the API contract remains independent of the UI implementation.
+
+---
+
+# Testing
+
+The project contains automated tests for the most important correctness areas.
+
+## Backend tests
+
+The backend tests cover:
+
+* Inherent-risk calculation.
+* Residual-risk calculation.
+* Severity boundaries.
+* Zero-mitigation behavior.
+* Mitigation effectiveness.
+* Residual score floor.
+* API validation.
+* Risk creation and retrieval.
+* Mitigation creation.
+* Residual-score recalculation.
+* Business-rule validation.
+
+Run backend tests from the project root:
 
 ```bash
 cd backend
-DB_URL=jdbc:postgresql://localhost:5432/risk_register \
-DB_USERNAME=risk_user \
-DB_PASSWORD=risk_password \
-./mvnw spring-boot:run
+mvn test
 ```
 
-The Maven bootstrap script downloads Maven on first use when a local `mvn` command is not available.
+---
 
-Useful environment variables:
+## Frontend tests
 
-| Variable | Default |
-|---|---|
-| `DB_URL` | `jdbc:postgresql://localhost:5432/risk_register` |
-| `DB_USERNAME` | `risk_user` |
-| `DB_PASSWORD` | `risk_password` |
-| `PORT` | `8080` |
-| `DEMO_DATA_ENABLED` | `false` |
-
-### Frontend
-
-Requirements: Node 22 recommended; Node 20.19 or newer is supported by the configured toolchain.
+Run frontend tests:
 
 ```bash
 cd frontend
-npm install
-npm run dev
+npm test
 ```
 
-The Vite development server runs at `http://localhost:5173` and proxies `/api` to `http://localhost:8080`.
+---
 
-## Design and organization
+## Run all tests
+
+The project also provides:
+
+```bash
+./test-all.sh
+```
+
+This runs the backend tests and frontend validation/build steps together.
+
+If the script is not executable:
+
+```bash
+chmod +x test-all.sh
+./test-all.sh
+```
+
+---
+
+# Development Notes
+
+## Frontend Dependency Versions
+
+The frontend uses pinned Vite/plugin versions and installs dependencies using the Docker build configuration in order to keep the local Docker build reproducible.
+
+The repository includes `package-lock.json` and should retain it in version control.
+
+## Docker
+
+Docker is not required by the assignment itself; it is included here purely to make the reviewer setup easier and deterministic.
+
+---
+
+# Key Assumptions and Trade-offs
+
+## Single organization
+
+Authentication and multi-tenant access control are intentionally not implemented because they are explicitly outside the assignment scope.
+
+## Free-text owner
+
+The owner is represented as free text rather than a separate user entity.
+
+This keeps the data model aligned with the assignment while avoiding unnecessary user-management complexity.
+
+## Residual-risk model
+
+The residual score uses compound percentage reductions rather than a fixed-point deduction.
+
+This keeps the score within the expected range and lets multiple controls have cumulative impact.
+
+## Framework mappings
+
+Framework functions are stored separately from the main risk record so the compliance mapping feature does not become coupled to the scoring model.
+
+This makes it easier to replace the hardcoded NIST list with another framework or a richer framework catalog later.
+
+## Review logic
+
+Review-overdue logic is kept in a dedicated policy component and uses an injected clock.
+
+This avoids embedding date logic directly inside persistence or UI code and makes future policy changes easier.
+
+## Optimistic updates
+
+Only mitigation mutations use optimistic updates because these interactions benefit most from immediate UI feedback while remaining relatively easy to roll back.
+
+---
+
+# What I Would Add With More Time
+
+The assignment intentionally allows trade-offs and TODOs when appropriate.
+
+With more time, I would consider:
+
+* Pagination for larger risk registers.
+* Server-side full-text search.
+* More detailed audit history for score and mitigation changes.
+* Role-based permissions.
+* A framework catalog rather than hardcoded NIST functions.
+* Scheduled review notifications.
+* More granular optimistic-update handling and retry behavior.
+* More extensive contract testing between frontend and backend.
+* CI checks for tests, formatting, and builds.
+* Production deployment configuration.
+
+These were intentionally not prioritized because the assignment emphasizes correctness, scoring logic, API design, testing, and clear communication over building a larger product surface.
+
+---
+
+# Manual Verification Checklist
+
+A reviewer can verify the main workflows in a few minutes:
 
 ```text
-backend/
-  api/          HTTP controllers, request/response DTOs, error mapping
-  domain/       JPA entities and enums
-  repository/   Persistence queries
-  scoring/      Pure score and severity logic
-  service/      Transactions and business invariants
-  config/       Optional demo seeding
-
-frontend/src/
-  api/          Typed HTTP client
-  components/   Reusable forms, badges, and table
-  pages/        Dashboard, create, edit, and detail routes
-  types/        API contracts
-  utils/        Formatting and frontend live-score helpers
+1. Start the application with Docker Compose.
+2. Open http://localhost:3000.
+3. Create a risk.
+4. Change likelihood and impact and verify the inherent score.
+5. Open the risk detail page.
+6. Add a mitigation and verify the residual score changes.
+7. Edit the mitigation and verify the residual score changes again.
+8. Delete the mitigation and verify the residual score returns accordingly.
+9. Filter risks by category and status.
+10. Sort by residual score.
+11. Attempt to close a risk with no mitigations and verify the business rule.
+12. Set a past next-review date and verify the overdue indicator.
+13. Add one or more NIST CSF mappings.
+14. Stop the backend and verify the frontend error state and Retry behavior.
+15. Restart the backend and verify the application recovers.
 ```
-
-Entities are not serialized directly. API DTOs isolate persistence from the public contract and make later fields or relationships easier to add without exposing lazy JPA state.
-
-## Assumptions and trade-offs
-
-- PostgreSQL is the runtime database. H2 is used only in automated tests to keep `./test-all.sh` fast and independent of Docker; PostgreSQL-specific behavior is covered by Flyway schema checks during normal startup.
-- Residual sorting is performed in the service after one filtered fetch with mitigations. That keeps the score formula in one pure component and avoids storing derived values. For very large registers, I would move the calculation to a database view/materialized column or maintain a transactionally updated score projection so sorting and pagination stay database-side.
-- Risk updates use `PUT` with a complete editable representation. A production API could add PATCH and optimistic locking for high-concurrency editing.
-- The demo data switch is enabled only by Compose. Normal backend startup leaves an empty register.
-- Authentication, tenant boundaries, production observability, CI/CD, and exhaustive concurrency handling are intentionally outside this assignment.
-
-## How the optional scope can be added later
-
-No optional feature is implemented, but the extension path is intentionally narrow:
-
-### Compliance-framework mappings
-
-Add a `FrameworkControl` reference catalog and a `RiskFrameworkMapping` join entity/repository/service. Expose it through a nested `/risks/{id}/framework-mappings` controller and add a `frameworkMappings` field to the detail DTO. The scoring service and existing risk table do not need to change.
-
-### Next review date
-
-Add `next_review_date` through a new Flyway migration and expose it on the risk request/detail DTO. Derive `overdue` in a small review-policy component using an injected clock. This keeps time-based presentation logic out of the entity and makes it deterministic in tests.
-
-### Richer request-state behavior
-
-The frontend API client already centralizes errors and mutations. A query-cache layer can replace page-local fetching later, enabling optimistic updates and cache invalidation without changing page routes or backend contracts.
-
-## What I would add with more time
-
-- PostgreSQL Testcontainers coverage in addition to the fast H2 integration test.
-- Optimistic locking with a version field and a clear stale-update response.
-- Pagination and database-side residual-score ordering for large registers.
-- OpenAPI generation and contract tests for the TypeScript client.
-- Accessibility checks and a small browser-level end-to-end suite.
-- Configurable scoring policies and explicit assumptions about control independence.
