@@ -1,0 +1,39 @@
+#!/usr/bin/env sh
+set -eu
+
+MAVEN_VERSION="3.9.16"
+MAVEN_USER_HOME="${MAVEN_USER_HOME:-${HOME}/.m2}"
+INSTALL_DIR="${MAVEN_USER_HOME}/wrapper/dists/apache-maven-${MAVEN_VERSION}"
+MAVEN_BIN="${INSTALL_DIR}/bin/mvn"
+
+if [ ! -x "$MAVEN_BIN" ]; then
+  ARCHIVE="${TMPDIR:-/tmp}/apache-maven-${MAVEN_VERSION}-bin.zip"
+  PRIMARY_URL="https://dlcdn.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.zip"
+  FALLBACK_URL="https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.zip"
+
+  mkdir -p "$(dirname "$INSTALL_DIR")"
+  rm -rf "$INSTALL_DIR"
+
+  download() {
+    url="$1"
+    if command -v curl >/dev/null 2>&1; then
+      curl -fsSL "$url" -o "$ARCHIVE"
+    elif command -v wget >/dev/null 2>&1; then
+      wget -q "$url" -O "$ARCHIVE"
+    else
+      echo "curl or wget is required to bootstrap Maven." >&2
+      exit 1
+    fi
+  }
+
+  if ! download "$PRIMARY_URL"; then
+    echo "Primary Maven download failed; trying the Apache archive." >&2
+    rm -f "$ARCHIVE"
+    download "$FALLBACK_URL"
+  fi
+
+  unzip -q "$ARCHIVE" -d "$(dirname "$INSTALL_DIR")"
+  rm -f "$ARCHIVE"
+fi
+
+exec "$MAVEN_BIN" "$@"

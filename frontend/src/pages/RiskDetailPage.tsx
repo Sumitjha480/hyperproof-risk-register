@@ -1,0 +1,187 @@
+import { useCallback, useEffect, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { ApiClientError, riskApi } from '../api/client'
+import { MitigationForm } from '../components/MitigationForm'
+import { PageMessage } from '../components/PageMessage'
+import { ScoreBadge } from '../components/ScoreBadge'
+import { StatusBadge } from '../components/StatusBadge'
+import type { Mitigation, MitigationPayload, RiskDetail } from '../types/risk'
+import { effectivenessLabel, formatDate, labelForEnum } from '../utils/format'
+
+export function RiskDetailPage() {
+  const { riskId } = useParams<{ riskId: string }>()
+  const navigate = useNavigate()
+  const [risk, setRisk] = useState<RiskDetail | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [actionError, setActionError] = useState('')
+  const [editingMitigationId, setEditingMitigationId] = useState<string | null>(null)
+
+  const loadRisk = useCallback(async () => {
+    if (!riskId) return
+    setLoading(true)
+    setError('')
+    try {
+      setRisk(await riskApi.get(riskId))
+    } catch {
+      setError('The requested risk could not be loaded.')
+    } finally {
+      setLoading(false)
+    }
+  }, [riskId])
+
+  useEffect(() => {
+    void loadRisk()
+  }, [loadRisk])
+
+  if (!riskId) return null
+  if (loading) return <div className="loading-line" role="status">Loading risk…</div>
+  if (error || !risk) return <PageMessage tone="error" title="Risk not available" message={error || 'Risk not found.'} />
+
+  async function addMitigation(payload: MitigationPayload) {
+    await riskApi.addMitigation(riskId!, payload)
+    await loadRisk()
+  }
+
+  async function updateMitigation(mitigationId: string, payload: MitigationPayload) {
+    await riskApi.updateMitigation(riskId!, mitigationId, payload)
+    setEditingMitigationId(null)
+    await loadRisk()
+  }
+
+  async function deleteMitigation(mitigation: Mitigation) {
+    if (!window.confirm('Delete this mitigation? The residual score will be recalculated.')) return
+    setActionError('')
+    try {
+      await riskApi.deleteMitigation(riskId!, mitigation.id)
+      await loadRisk()
+    } catch (caught) {
+      setActionError(caught instanceof ApiClientError ? caught.message : 'The mitigation could not be deleted.')
+    }
+  }
+
+  async function deleteRisk() {
+    if (!window.confirm(`Delete “${risk!.title}” and all of its mitigations?`)) return
+    setActionError('')
+    try {
+      await riskApi.delete(riskId!)
+      navigate('/')
+    } catch (caught) {
+      setActionError(caught instanceof ApiClientError ? caught.message : 'The risk could not be deleted.')
+    }
+  }
+
+  const scoreReduction = risk.inherentScore - risk.residualScore
+
+  return (
+    <div className="page-stack">
+      <section className="detail-header">
+        <div>
+          <div className="detail-kicker">
+            <span>{labelForEnum(risk.category)}</span>
+            <StatusBadge status={risk.status} />
+          </div>
+          <h1>{risk.title}</h1>
+          <p>{risk.description || 'No description provided.'}</p>
+        </div>
+        <div className="button-row">
+          <Link className="button button-secondary" to={`/risks/${risk.id}/edit`}>Edit risk</Link>
+          <button className="button button-danger" type="button" onClick={deleteRisk}>Delete</button>
+        </div>
+      </section>
+
+      {actionError && <div className="inline-alert" role="alert">{actionError}</div>}
+
+      <section className="score-grid">
+        <article className="score-card">
+          <span className="eyebrow">Before controls</span>
+          <div className="score-card-main">
+            <div>
+              <h2>Inherent risk</h2>
+              <p>{risk.likelihood} likelihood × {risk.impact} impact</p>
+            </div>
+            <ScoreBadge score={risk.inherentScore} severity={risk.inherentSeverity} />
+          </div>
+        </article>
+        <article className="score-card score-card-emphasis">
+          <span className="eyebrow">After controls</span>
+          <div className="score-card-main">
+            <div>
+              <h2>Residual risk</h2>
+              <p>{risk.mitigationCount} recorded mitigation{risk.mitigationCount === 1 ? '' : 's'} · {scoreReduction} point reduction</p>
+            </div>
+            <ScoreBadge score={risk.residualScore} severity={risk.residualSeverity} />
+          </div>
+        </article>
+      </section>
+
+      <section className="detail-grid">
+        <article className="panel detail-metadata">
+          <div className="panel-heading"><h2>Ownership and lifecycle</h2></div>
+          <dl>
+            <div><dt>Owner</dt><dd>{risk.owner}</dd></div>
+            <div><dt>Status</dt><dd><StatusBadge status={risk.status} /></dd></div>
+            <div><dt>Created</dt><dd>{formatDate(risk.createdAt)}</dd></div>
+            <div><dt>Last updated</dt><dd>{formatDate(risk.updatedAt)}</dd></div>
+          </dl>
+          {risk.mitigationCount === 0 && (
+            <div className="rule-note">
+              <strong>Closure blocked</strong>
+              <span>Record at least one mitigation before marking this risk Closed.</span>
+            </div>
+          )}
+        </article>
+
+        <article className="panel mitigation-panel">
+          <div className="panel-heading">
+            <div>
+              <h2>Mitigations</h2>
+              <p>Controls reduce the remaining score independently and with diminishing returns.</p>
+            </div>
+            <span className="count-pill">{risk.mitigationCount}</span>
+          </div>
+
+          {risk.mitigations.length === 0 ? (
+            <div className="empty-inline">No mitigations have been recorded.</div>
+          ) : (
+            <ul className="mitigation-list">
+              {risk.mitigations.map((mitigation) => (
+                <li key={mitigation.id}>
+                  {editingMitigationId === mitigation.id ? (
+                    <MitigationForm
+                      initialValues={{
+                        description: mitigation.description,
+                        effectiveness: mitigation.effectiveness,
+                      }}
+                      submitLabel="Save mitigation"
+                      onSubmit={(payload) => updateMitigation(mitigation.id, payload)}
+                      onCancel={() => setEditingMitigationId(null)}
+                    />
+                  ) : (
+                    <>
+                      <div className="mitigation-content">
+                        <p>{mitigation.description}</p>
+                        <span>
+                          Effectiveness {mitigation.effectiveness}/5 · {effectivenessLabel(mitigation.effectiveness)} · Added {formatDate(mitigation.createdAt)}
+                        </span>
+                      </div>
+                      <div className="mitigation-actions">
+                        <button className="text-button" type="button" onClick={() => setEditingMitigationId(mitigation.id)}>Edit</button>
+                        <button className="text-button text-button-danger" type="button" onClick={() => deleteMitigation(mitigation)}>Delete</button>
+                      </div>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="add-mitigation">
+            <h3>Add a mitigation</h3>
+            <MitigationForm submitLabel="Add mitigation" onSubmit={addMitigation} />
+          </div>
+        </article>
+      </section>
+    </div>
+  )
+}

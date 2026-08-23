@@ -1,0 +1,36 @@
+@baseUrl = http://localhost:8080/api
+
+### List risks, highest residual first
+GET {{baseUrl}}/risks?sort=residualScore,desc
+
+### Filter by category and status
+GET {{baseUrl}}/risks?category=SECURITY&status=OPEN&sort=residualScore,desc
+
+### Create a risk
+POST {{baseUrl}}/risks
+Content-Type: application/json
+
+{
+  "title": "Privileged account compromise",
+  "description": "An attacker may gain privileged access to production systems.",
+  "category": "SECURITY",
+  "owner": "Security Engineering",
+  "likelihood": 5,
+  "impact": 4,
+  "status": "OPEN"
+}
+
+### Replace RISK_ID with the id returned above
+@riskId = RISK_ID
+
+### Add a mitigation
+POST {{baseUrl}}/risks/{{riskId}}/mitigations
+Content-Type: application/json
+
+{
+  "description": "Require phishing-resistant MFA for privileged access",
+  "effectiveness": 5
+}
+
+### Fetch recalculated details
+GET {{baseUrl}}/risks/{{riskId}}

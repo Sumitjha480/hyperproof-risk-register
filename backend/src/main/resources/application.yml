@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: risk-register-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/risk_register}
+    username: ${DB_USERNAME:risk_user}
+    password: ${DB_PASSWORD:risk_password}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        default_batch_fetch_size: 50
+  flyway:
+    enabled: true
+  jackson:
+    default-property-inclusion: non_null
+    deserialization:
+      accept-float-as-int: false
+
+server:
+  port: ${PORT:8080}
+
+app:
+  demo-data:
+    enabled: ${DEMO_DATA_ENABLED:false}
