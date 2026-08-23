@@ -32,4 +32,3 @@ class ReviewPolicyTest {
         assertThat(policy.isOverdue(null, RiskStatus.MITIGATING)).isFalse();
     }
 }
-

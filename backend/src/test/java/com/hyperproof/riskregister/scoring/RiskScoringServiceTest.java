@@ -70,17 +70,43 @@ class RiskScoringServiceTest {
         assertThat(scoringService.severityFor(score)).isEqualTo(expected);
     }
 
+    @ParameterizedTest
+    @CsvSource({
+            "1, 1, 1",
+            "1, 5, 5",
+            "5, 1, 5",
+            "5, 5, 25"
+    })
+    void acceptsValidLikelihoodAndImpactBoundaries(int likelihood, int impact, int expectedInherent) {
+        RiskScore score = scoringService.calculate(likelihood, impact, List.of());
+
+        assertThat(score.inherentScore()).isEqualTo(expectedInherent);
+        assertThat(score.residualScore()).isEqualTo(expectedInherent);
+    }
+
     @Test
     void rejectsValuesOutsideTheOneToFiveScale() {
         assertThatThrownBy(() -> scoringService.calculate(0, 5, List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("likelihood");
 
+        assertThatThrownBy(() -> scoringService.calculate(6, 5, List.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("likelihood");
+
+        assertThatThrownBy(() -> scoringService.calculate(5, 0, List.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("impact");
+
         assertThatThrownBy(() -> scoringService.calculate(5, 6, List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("impact");
 
         assertThatThrownBy(() -> scoringService.calculate(5, 5, List.of(0)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("effectiveness");
+
+        assertThatThrownBy(() -> scoringService.calculate(5, 5, List.of(6)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("effectiveness");
     }
