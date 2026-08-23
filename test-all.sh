@@ -18,7 +18,7 @@ if command -v docker >/dev/null 2>&1; then
     -v /workspace/node_modules \
     -w /workspace \
     node:22-alpine \
-    sh -c "npm install --no-audit --no-fund && npm test && npm run build"
+    sh -c "npm install --legacy-peer-deps --no-audit --no-fund && npm test -- --run && npm run build"
 else
   echo "Docker not found; using local Java, Maven wrapper, Node, and npm."
   (cd "$SCRIPT_DIR/backend" && ./mvnw -q test)
